@@ -1,4 +1,4 @@
-<img width="1337" height="235" alt="image" src="https://github.com/user-attachments/assets/f77c0302-e330-4566-92ce-fbff17e1529f" /># WSL Container Lab — WSL2 + Docker (Container-focused README)
+# WSL Container Lab — WSL2 + Docker (Container-focused README)
 
 This lab covers using WSL2 (Ubuntu) as your development environment for Docker container experiments. It teaches: running containers, port mapping, inspecting containers, exec'ing into containers, modifying container files, and understanding persistence vs. volumes. Include the provided screenshots in the `images/` folder (see the "Images" section).
 
@@ -16,9 +16,11 @@ This lab covers using WSL2 (Ubuntu) as your development environment for Docker c
 
 Verify WSL and Docker:
 
+```powershell
 wsl --version
 wsl --status
 wsl --list --verbose
+```
 
 ```bash
 docker version
@@ -166,6 +168,7 @@ mkdir -p images
 - Create a Dockerfile and build a custom image that embeds your HTML permanently.
 - Learn `docker-compose` to manage WordPress + NGINX stacks together.
 
+---
 
 If you want, I can also:
 
