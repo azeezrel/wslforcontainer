@@ -1,187 +1,1176 @@
-# WSL Container Lab — WSL2 + Docker (Container-focused README)
+Absolutely. Since you're documenting the **hands-on WSL + Docker container lab** we’ve been doing, I’d structure the README as a practical step-by-step guide you can keep in your GitHub repo and continue updating.
 
-This lab is a concise, reproducible guide for doing container experiments inside WSL2 (Ubuntu). It covers running containers, port mapping, container inspection, exec-ing into containers, simple file edits inside containers, and demonstrating ephemeral storage vs. volumes.
+# WSL + Docker Container Hands-On Lab
 
-Important: To make images display reliably on GitHub, add your screenshot files into an `images/` folder at the repository root. Filenames must exactly match the links used in this README (case-sensitive on some platforms).
+A practical step-by-step guide for learning **WSL, Linux, Docker, and containers** on Windows.
+
+The goal of this lab is to understand how Windows, WSL, Docker Desktop, and Linux containers work together by actually running and managing containers.
 
 ---
 
-## Objective
+## 1. Lab Architecture
 
-- Run an NGINX container on host port `8081` while WordPress runs on `8080`.
-- Inspect the NGINX container, change its default webpage, and test persistence behavior.
+The environment used in this lab is:
 
-## Prerequisites
+```text
+Windows
+   │
+   ├── WSL 2
+   │     │
+   │     └── Ubuntu
+   │            │
+   │            └── Docker CLI
+   │
+   └── Docker Desktop
+          │
+          └── Docker Engine
+                 │
+                 └── Containers
+                       └── Nginx
+```
 
-- Windows 10/11 with WSL2 enabled
-- Ubuntu (or another WSL2 distribution)
-- Docker Desktop with WSL2 integration enabled
-- (Optional) VS Code with Remote - WSL
+### Main Technologies
 
-Verify WSL and Docker:
+* Windows 10/11
+* WSL 2
+* Ubuntu
+* Docker Desktop
+* Docker Engine
+* Docker CLI
+* Nginx
+* Linux containers
+
+---
+
+# 2. Verify Windows
+
+Open **PowerShell as Administrator**.
+
+Check the Windows version:
+
+```powershell
+winver
+```
+
+Or:
+
+```powershell
+systeminfo
+```
+
+---
+
+# 3. Install WSL
+
+From PowerShell:
+
+```powershell
+wsl --install
+```
+
+Restart Windows if requested.
+
+After restarting, verify WSL:
 
 ```powershell
 wsl --version
-wsl --status
+```
+
+Check installed distributions:
+
+```powershell
 wsl --list --verbose
 ```
 
-```bash
-docker version
-docker info
+Expected example:
+
+```text
+NAME      STATE           VERSION
+Ubuntu    Running         2
 ```
 
-## Best practices
+The important part is:
 
-- Keep your project files inside WSL (`~/...`) not under `/mnt/c/...` to avoid slow I/O.
-- Use Docker volumes or bind mounts to persist files across container restarts.
+```text
+VERSION 2
+```
+
+This confirms that Ubuntu is running using **WSL 2**.
 
 ---
 
-## Lab steps (with images)
+# 4. Start Ubuntu
 
-Place the images into `images/` with the exact filenames below. Then push them to GitHub; they will render inline.
+From PowerShell:
 
-### 1) Check working directory and running containers
-
-Commands:
-
-```bash
-pwd
-docker ps --format "table {{.Names}}\t{{.Ports}}\t{{.Status}}"
+```powershell
+wsl
 ```
 
-Image: `images/01-pwd-docker-ps.png`
+Or:
 
-![pwd + docker ps output](images/01-pwd-docker-ps.png)
-
-### 2) Remove any previous container and run NGINX on host port 8081
-
-```bash
-docker rm nginx-lab  # remove if present
-docker run -d --name nginx-lab -p 8081:80 nginx
-docker ps --format "table {{.Names}}\t{{.Ports}}\t{{.Status}}"
+```powershell
+ubuntu
 ```
 
-Image: `images/01-pwd-docker-ps.png` (same screenshot shows run and ps)
+You should now be inside the Linux environment.
 
-![run nginx and docker ps](images/01-pwd-docker-ps.png)
+Example:
 
-### 3) Test NGINX from host
-
-```bash
-curl -I http://localhost:8081
+```text
+azeez@computer:~$
 ```
 
-Image: `images/02-curl-docker-inspect.png`
-
-![curl headers and start of inspect](images/02-curl-docker-inspect.png)
-
-### 4) Inspect the container
+Check the current user:
 
 ```bash
-docker inspect nginx-lab
-
-# or to get the container IP only:
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nginx-lab
+whoami
 ```
 
-Images: `images/03-docker-inspect-full.png`, `images/04-container-ip.png`
-
-![full docker inspect output](images/03-docker-inspect-full.png)
-![extracted container IP](images/04-container-ip.png)
-
-### 5) Enter the container and view files
+Check the Linux distribution:
 
 ```bash
-docker exec -it nginx-lab /bin/bash
-# inside container
-cat /usr/share/nginx/html/index.html
 cat /etc/os-release
-exit
 ```
 
-Image: `images/05-inside-container.png`
-
-![inside container, cat index.html and os-release](images/05-inside-container.png)
-
-### 6) Modify the default webpage
+Check the kernel:
 
 ```bash
-docker exec -it nginx-lab /bin/bash
-echo '<h1>Hello from Azeez Docker Lab 🚀</h1>' > /usr/share/nginx/html/index.html
-cat /usr/share/nginx/html/index.html
-exit
+uname -a
 ```
 
-Refresh `http://localhost:8081` to confirm the change.
+---
 
-### 7) Stop/start and check persistence
+# 5. Understand Windows and Linux File Systems
+
+WSL allows Linux to access Windows files.
+
+Windows drives are mounted under:
+
+```text
+/mnt/
+```
+
+For example:
 
 ```bash
-docker stop nginx-lab
-docker start nginx-lab
-curl -I http://localhost:8081
-docker exec -it nginx-lab cat /usr/share/nginx/html/index.html
+cd /mnt/c
 ```
 
-If your change is lost after restart, persistent storage (volumes) is required.
+Go to the Windows Users directory:
 
-### 8) List Docker images on host
+```bash
+cd /mnt/c/Users
+```
+
+List the contents:
+
+```bash
+ls
+```
+
+You can also access your Windows Desktop:
+
+```bash
+cd /mnt/c/Users/<USERNAME>/Desktop
+```
+
+---
+
+# 6. Update Ubuntu
+
+Before installing or working with packages, update Ubuntu:
+
+```bash
+sudo apt update
+```
+
+Upgrade installed packages:
+
+```bash
+sudo apt upgrade -y
+```
+
+---
+
+# 7. Check Whether Docker Is Available
+
+Inside Ubuntu:
+
+```bash
+docker --version
+```
+
+Also check:
+
+```bash
+docker info
+```
+
+If Docker is not available, install **Docker Desktop for Windows** and enable WSL integration.
+
+---
+
+# 8. Configure Docker Desktop
+
+Open Docker Desktop on Windows.
+
+Go to:
+
+```text
+Settings
+   → Resources
+      → WSL Integration
+```
+
+Enable:
+
+```text
+Enable integration with my default WSL distro
+```
+
+Then enable Ubuntu.
+
+Apply the changes.
+
+Return to Ubuntu and test:
+
+```bash
+docker --version
+```
+
+Then:
+
+```bash
+docker info
+```
+
+If Docker is working, the Docker Engine information should be displayed.
+
+---
+
+# 9. Test Docker
+
+Run the Docker test container:
+
+```bash
+docker run hello-world
+```
+
+Docker will:
+
+1. Check whether the image exists locally.
+2. Download the image if necessary.
+3. Create a container.
+4. Start the container.
+5. Display a confirmation message.
+6. Stop the container.
+
+This confirms that Docker is working correctly.
+
+---
+
+# 10. Understand Images vs Containers
+
+This is one of the most important Docker concepts.
+
+### Docker Image
+
+An image is a packaged template used to create containers.
+
+Examples:
+
+```text
+nginx
+ubuntu
+node
+python
+postgres
+redis
+```
+
+### Docker Container
+
+A container is a running instance created from an image.
+
+Think of it like:
+
+```text
+IMAGE
+   ↓
+docker run
+   ↓
+CONTAINER
+```
+
+For example:
+
+```bash
+docker run nginx
+```
+
+The `nginx` image is used to create an Nginx container.
+
+---
+
+# 11. Download an Nginx Image
+
+Pull the Nginx image:
+
+```bash
+docker pull nginx
+```
+
+Check downloaded images:
 
 ```bash
 docker images
 ```
 
-Images: `images/06-docker-images-1.png`, `images/07-docker-images-2.png`
+You should see something similar to:
 
-![docker images list](images/06-docker-images-1.png)
-![docker images (continued) & example run](images/07-docker-images-2.png)
+```text
+REPOSITORY   TAG       IMAGE ID
+nginx        latest    xxxxxxxx
+```
 
 ---
 
-## How to add images and verify they will render on GitHub
+# 12. Run Your First Nginx Container
 
-1. Create the `images/` folder at the repository root:
-
-```powershell
-mkdir images
-```
-
-2. Copy your screenshots into `images/` and ensure filenames match these exactly (or edit the filenames below to match your images):
-
-- `01-pwd-docker-ps.png`
-- `02-curl-docker-inspect.png`
-- `03-docker-inspect-full.png`
-- `04-container-ip.png`
-- `05-inside-container.png`
-- `06-docker-images-1.png`
-- `07-docker-images-2.png`
-
-3. Stage and commit the images and README, then push to the branch GitHub displays (`main` by default):
+Run Nginx:
 
 ```bash
-git add images/*.png README.md
-git commit -m "Add lab README and screenshots"
-git push origin main
+docker run -d --name nginx-lab nginx
 ```
 
-4. Visit GitHub and open your README — images should render inline. If an image is missing, check the exact filename and case, and ensure it was pushed to the same branch.
+Explanation:
+
+```text
+docker run       → create and start a container
+-d               → run in detached/background mode
+--name nginx-lab → give the container a name
+nginx            → image to use
+```
+
+Check running containers:
+
+```bash
+docker ps
+```
 
 ---
 
-## Glossary
+# 13. Expose the Container to Windows
 
-- Container: Running instance of an image.
-- Image: Read-only template created from a Dockerfile.
-- Bind mount: Host file/directory mounted inside container (good for development).
-- Volume: Docker-managed persistent storage.
+Run Nginx with port mapping:
 
-## Next steps
+```bash
+docker run -d --name nginx-lab -p 8081:80 nginx
+```
 
-- Persist edits using bind mounts or volumes.
-- Build a custom image with the modified content.
-- Use `docker-compose` for multi-container setups.
+Port mapping:
 
-If you'd like, I can add an `images/.gitkeep` placeholder now so the `images/` folder exists in the repo. I can also add the actual screenshots if you upload them here.
+```text
+Windows Port 8081
+       │
+       ▼
+Container Port 80
+       │
+       ▼
+     Nginx
+```
 
+Check the port:
+
+```bash
+docker ps
+```
+
+Or:
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Ports}}\t{{.Status}}"
+```
+
+Expected:
+
+```text
+NAMES       PORTS                  STATUS
+nginx-lab   0.0.0.0:8081->80/tcp  Up ...
+```
+
+---
+
+# 14. Access Nginx From Windows
+
+Open your Windows browser and visit:
+
+```text
+http://localhost:8081
+```
+
+You should see the default Nginx page.
+
+This demonstrates:
+
+```text
+Browser
+   ↓
+localhost:8081
+   ↓
+Docker port mapping
+   ↓
+Container port 80
+   ↓
+Nginx
+```
+
+---
+
+# 15. Enter the Running Container
+
+Find the container:
+
+```bash
+docker ps
+```
+
+Then enter it:
+
+```bash
+docker exec -it nginx-lab /bin/bash
+```
+
+You are now inside the container.
+
+Check the operating system:
+
+```bash
+cat /etc/os-release
+```
+
+Check the hostname:
+
+```bash
+hostname
+```
+
+Check the current directory:
+
+```bash
+pwd
+```
+
+---
+
+# 16. Explore the Nginx Container
+
+Go to the Nginx web directory:
+
+```bash
+cd /usr/share/nginx/html
+```
+
+List the files:
+
+```bash
+ls
+```
+
+You should see:
+
+```text
+index.html
+```
+
+Display the page:
+
+```bash
+cat index.html
+```
+
+---
+
+# 17. Modify the Nginx Web Page
+
+Inside the container:
+
+```bash
+echo '<h1>Hello from Azeez Docker Lab 🚀</h1>' > /usr/share/nginx/html/index.html
+```
+
+Exit the container:
+
+```bash
+exit
+```
+
+Refresh:
+
+```text
+http://localhost:8081
+```
+
+The new page should now appear.
+
+This demonstrates that you can interact directly with the filesystem inside a running container.
+
+---
+
+# 18. View Container Logs
+
+Run:
+
+```bash
+docker logs nginx-lab
+```
+
+Follow the logs in real time:
+
+```bash
+docker logs -f nginx-lab
+```
+
+Press:
+
+```text
+CTRL + C
+```
+
+to stop following the logs.
+
+---
+
+# 19. Inspect the Container
+
+Run:
+
+```bash
+docker inspect nginx-lab
+```
+
+This displays detailed container information, including:
+
+* Container ID
+* Image
+* Network
+* IP address
+* Port mappings
+* Mounts
+* Environment
+* Runtime configuration
+
+---
+
+# 20. Stop the Container
+
+```bash
+docker stop nginx-lab
+```
+
+Check:
+
+```bash
+docker ps
+```
+
+The container should no longer appear among running containers.
+
+To show stopped containers:
+
+```bash
+docker ps -a
+```
+
+---
+
+# 21. Start the Container Again
+
+```bash
+docker start nginx-lab
+```
+
+Check:
+
+```bash
+docker ps
+```
+
+The container should be running again.
+
+---
+
+# 22. Restart a Container
+
+```bash
+docker restart nginx-lab
+```
+
+---
+
+# 23. Remove a Container
+
+First stop it:
+
+```bash
+docker stop nginx-lab
+```
+
+Then remove it:
+
+```bash
+docker rm nginx-lab
+```
+
+Verify:
+
+```bash
+docker ps -a
+```
+
+---
+
+# 24. Remove a Docker Image
+
+List images:
+
+```bash
+docker images
+```
+
+Remove the Nginx image:
+
+```bash
+docker rmi nginx
+```
+
+If a container still depends on the image, remove the container first.
+
+---
+
+# 25. Useful Docker Commands
+
+### List running containers
+
+```bash
+docker ps
+```
+
+### List all containers
+
+```bash
+docker ps -a
+```
+
+### List images
+
+```bash
+docker images
+```
+
+### Pull an image
+
+```bash
+docker pull <image>
+```
+
+### Run a container
+
+```bash
+docker run <image>
+```
+
+### Run in background
+
+```bash
+docker run -d <image>
+```
+
+### Give a container a name
+
+```bash
+docker run --name <container-name> <image>
+```
+
+### Map a port
+
+```bash
+docker run -p <host-port>:<container-port> <image>
+```
+
+### Stop a container
+
+```bash
+docker stop <container>
+```
+
+### Start a container
+
+```bash
+docker start <container>
+```
+
+### Restart a container
+
+```bash
+docker restart <container>
+```
+
+### Remove a container
+
+```bash
+docker rm <container>
+```
+
+### View logs
+
+```bash
+docker logs <container>
+```
+
+### Enter a container
+
+```bash
+docker exec -it <container> /bin/bash
+```
+
+### Inspect a container
+
+```bash
+docker inspect <container>
+```
+
+---
+
+# 26. Docker Container Lifecycle
+
+The basic lifecycle is:
+
+```text
+Docker Image
+     │
+     ▼
+docker run
+     │
+     ▼
+Created
+     │
+     ▼
+Running
+     │
+     ├── docker stop
+     │       ↓
+     │    Stopped
+     │
+     └── docker restart
+             ↓
+          Running
+             
+Stopped
+   │
+   ▼
+docker rm
+   │
+   ▼
+Removed
+```
+
+---
+
+# 27. Important Docker Concepts to Learn Next
+
+After understanding basic containers, continue with:
+
+### Level 1 — Docker Fundamentals
+
+* Images
+* Containers
+* Ports
+* Logs
+* Container lifecycle
+* Docker commands
+
+### Level 2 — Container Storage
+
+Learn:
+
+* Volumes
+* Bind mounts
+* Persistent data
+
+Example:
+
+```bash
+docker volume create nginx-data
+```
+
+---
+
+### Level 3 — Container Networking
+
+Learn:
+
+* Bridge networks
+* Container-to-container communication
+* DNS
+* Port mapping
+
+Example:
+
+```bash
+docker network ls
+```
+
+Create a network:
+
+```bash
+docker network create lab-network
+```
+
+---
+
+### Level 4 — Dockerfile
+
+Learn how to build your own image.
+
+Example:
+
+```dockerfile
+FROM nginx:latest
+
+COPY index.html /usr/share/nginx/html/index.html
+```
+
+Build:
+
+```bash
+docker build -t my-nginx .
+```
+
+Run:
+
+```bash
+docker run -d --name my-nginx -p 8082:80 my-nginx
+```
+
+---
+
+### Level 5 — Docker Compose
+
+Learn how to run multiple containers together.
+
+Example architecture:
+
+```text
+                 Docker Compose
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+       Frontend                Backend
+          │                       │
+          └───────────┬───────────┘
+                      │
+                   Database
+```
+
+This is important for understanding real-world application deployments.
+
+---
+
+# 28. DevOps Connection
+
+The purpose of this lab is not just learning Docker commands.
+
+The concepts connect directly to DevOps.
+
+```text
+Developer
+    ↓
+GitHub
+    ↓
+Dockerfile
+    ↓
+Docker Image
+    ↓
+Container
+    ↓
+CI/CD Pipeline
+    ↓
+Container Registry
+    ↓
+Azure / Kubernetes
+```
+
+For example:
+
+```text
+GitHub
+   ↓
+GitHub Actions
+   ↓
+docker build
+   ↓
+docker push
+   ↓
+Azure Container Registry
+   ↓
+Azure Container Apps / AKS
+```
+
+Understanding Docker locally makes it easier to understand **Kubernetes, Azure Container Apps, AKS, CI/CD and container registries**.
+
+---
+
+# 29. Recommended Hands-On Exercises
+
+## Exercise 1 — Nginx
+
+Run Nginx:
+
+```bash
+docker run -d --name nginx-lab -p 8081:80 nginx
+```
+
+Access:
+
+```text
+http://localhost:8081
+```
+
+---
+
+## Exercise 2 — Modify the Website
+
+Enter the container:
+
+```bash
+docker exec -it nginx-lab /bin/bash
+```
+
+Modify:
+
+```bash
+echo '<h1>My First Docker Application 🚀</h1>' > /usr/share/nginx/html/index.html
+```
+
+Refresh the browser.
+
+---
+
+## Exercise 3 — Container Investigation
+
+Run:
+
+```bash
+docker inspect nginx-lab
+```
+
+Find:
+
+* Container IP
+* Port mapping
+* Image
+* Network
+* Mounts
+
+---
+
+## Exercise 4 — Logs
+
+Run:
+
+```bash
+docker logs nginx-lab
+```
+
+Open the website several times and check the logs again.
+
+---
+
+## Exercise 5 — Lifecycle
+
+Practice:
+
+```bash
+docker stop nginx-lab
+docker start nginx-lab
+docker restart nginx-lab
+docker ps
+docker ps -a
+```
+
+---
+
+## Exercise 6 — Build Your Own Image
+
+Create:
+
+```text
+docker-lab/
+├── Dockerfile
+└── index.html
+```
+
+Create your own HTML page and Dockerfile.
+
+Build:
+
+```bash
+docker build -t my-nginx .
+```
+
+Run:
+
+```bash
+docker run -d --name my-nginx -p 8082:80 my-nginx
+```
+
+Open:
+
+```text
+http://localhost:8082
+```
+
+---
+
+# 30. Troubleshooting
+
+### Docker command not found
+
+Check:
+
+```bash
+docker --version
+```
+
+If Docker is unavailable, verify Docker Desktop is running and WSL integration is enabled.
+
+---
+
+### Container is not running
+
+Check:
+
+```bash
+docker ps -a
+```
+
+Then check logs:
+
+```bash
+docker logs <container-name>
+```
+
+---
+
+### Port already in use
+
+Check the port:
+
+```bash
+docker ps
+```
+
+Use another host port:
+
+```bash
+docker run -d --name nginx-lab2 -p 8082:80 nginx
+```
+
+---
+
+### Container exits immediately
+
+Check:
+
+```bash
+docker ps -a
+```
+
+Then:
+
+```bash
+docker logs <container-name>
+```
+
+---
+
+# 31. Lab Progress
+
+### Completed
+
+* [x] Installed/verified WSL 2
+* [x] Installed Ubuntu
+* [x] Connected WSL with Docker Desktop
+* [x] Verified Docker CLI
+* [x] Ran `hello-world`
+* [x] Pulled Nginx image
+* [x] Created an Nginx container
+* [x] Mapped container ports
+* [x] Accessed Nginx from Windows browser
+* [x] Entered a running container
+* [x] Modified the Nginx webpage
+* [x] Practiced container lifecycle commands
+
+### In Progress
+
+* [ ] Docker volumes
+* [ ] Docker bind mounts
+* [ ] Docker networking
+* [ ] Dockerfile
+* [ ] Building custom images
+* [ ] Docker Compose
+* [ ] Multi-container applications
+* [ ] Container security
+* [ ] Docker image optimization
+
+### Next Steps
+
+```text
+WSL
+ ↓
+Docker Fundamentals
+ ↓
+Dockerfile
+ ↓
+Volumes
+ ↓
+Networking
+ ↓
+Docker Compose
+ ↓
+GitHub Actions + Docker
+ ↓
+Azure Container Registry
+ ↓
+Azure Container Apps
+ ↓
+Kubernetes / AKS
+```
+
+---
+
+# 32. Key Takeaway
+
+The main lesson from this lab is understanding the relationship between:
+
+```text
+Windows
+   ↓
+WSL
+   ↓
+Ubuntu
+   ↓
+Docker
+   ↓
+Docker Image
+   ↓
+Container
+   ↓
+Application
+```
+
+Once this becomes clear, Docker stops being just a collection of commands and becomes a foundation for understanding modern **DevOps and cloud-native deployments**.
+
+This is set up as a **learning log + reusable lab guide**, so as you move into volumes, networking, Dockerfile and Compose, you can keep adding the commands and exercises to the same README.
